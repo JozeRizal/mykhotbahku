@@ -24,13 +24,33 @@ export const TeleprompterPage: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>(null);
   const scrollPosRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
 
+  // Sync scroll position when user scrolls manually
   useEffect(() => {
-    if (isPlaying && scrollRef.current) {
-      scrollPosRef.current = scrollRef.current.scrollTop;
+    const handleManualScroll = () => {
+      if (scrollRef.current) {
+        // Always keep scrollPosRef in sync with actual scroll position
+        // but only if it's a significant jump (manual scroll) or we're not playing
+        const currentScroll = scrollRef.current.scrollTop;
+        if (!isPlaying || Math.abs(currentScroll - scrollPosRef.current) > 5) {
+          scrollPosRef.current = currentScroll;
+        }
+      }
+    };
+
+    const currentRef = scrollRef.current;
+    if (currentRef) {
+      currentRef.addEventListener('scroll', handleManualScroll, { passive: true });
     }
+    return () => {
+      if (currentRef) {
+        currentRef.removeEventListener('scroll', handleManualScroll);
+      }
+    };
   }, [isPlaying]);
 
+  // Timer logic
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isPlaying && timeLeft > 0) {
@@ -39,7 +59,14 @@ export const TeleprompterPage: React.FC = () => {
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [isPlaying, timeLeft]);
+  }, [isPlaying]);
+
+  // Initial sync when playing starts
+  useEffect(() => {
+    if (isPlaying && scrollRef.current) {
+      scrollPosRef.current = scrollRef.current.scrollTop;
+    }
+  }, [isPlaying]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -47,16 +74,31 @@ export const TeleprompterPage: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const scroll = () => {
+  const animate = (time: number) => {
+    if (!lastTimeRef.current) lastTimeRef.current = time;
+    const deltaTime = time - lastTimeRef.current;
+    lastTimeRef.current = time;
+
     if (scrollRef.current && isPlaying) {
-      scrollPosRef.current += scrollSpeed;
+      // Use delta time for smooth movement regardless of frame rate
+      // scrollSpeed * (deltaTime / 16.67) ensures consistent speed at 60fps
+      const moveAmount = scrollSpeed * (deltaTime / 16.67);
+      scrollPosRef.current += moveAmount;
       scrollRef.current.scrollTop = scrollPosRef.current;
     }
-    requestRef.current = requestAnimationFrame(scroll);
+
+    if (isPlaying) {
+      requestRef.current = requestAnimationFrame(animate);
+    }
   };
 
   useEffect(() => {
-    requestRef.current = requestAnimationFrame(scroll);
+    if (isPlaying) {
+      lastTimeRef.current = 0;
+      requestRef.current = requestAnimationFrame(animate);
+    } else {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    }
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
@@ -143,8 +185,13 @@ export const TeleprompterPage: React.FC = () => {
       {/* Content Area */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-8 pt-20 pb-40 scroll-smooth"
-        style={{ fontSize: `${fontSize}px`, lineHeight: 1.6 }}
+        className="flex-1 overflow-y-auto p-8 pt-20 pb-40"
+        style={{ 
+          fontSize: `${fontSize}px`, 
+          lineHeight: 1.6,
+          overscrollBehavior: 'none',
+          touchAction: 'pan-y'
+        }}
       >
         <div className="max-w-3xl mx-auto">
           <h1 className="text-yellow-400 font-bold mb-4">{sermon.title}</h1>
@@ -159,9 +206,9 @@ export const TeleprompterPage: React.FC = () => {
       <div className="absolute bottom-10 left-0 right-0 flex justify-center px-6">
         <button
           onClick={() => setIsPlaying(!isPlaying)}
-          className="w-16 h-16 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform"
+          className="w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform"
         >
-          {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
+          {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
         </button>
       </div>
 
