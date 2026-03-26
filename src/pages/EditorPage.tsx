@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSermons } from '../context/SermonContext';
-import { Sparkles, Save, Download, MoreVertical, ChevronLeft, Clock, Lightbulb } from 'lucide-react';
+import { Sparkles, Save, Download, MoreVertical, ChevronLeft, Clock, Lightbulb, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
@@ -187,6 +187,46 @@ export const EditorPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white pb-32">
+      <AnimatePresence>
+        {isGenerating && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-6 text-center"
+          >
+            <div className="relative">
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6"
+              >
+                <Sparkles size={40} className="text-indigo-600" />
+              </motion.div>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="absolute -top-2 -right-2"
+              >
+                <Loader2 size={24} className="text-indigo-400" />
+              </motion.div>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Menyusun Khotbah Anda...</h3>
+            <p className="text-gray-500 max-w-xs">AI sedang merangkai kata-kata terbaik untuk {targetAudience} di gereja {churchType}.</p>
+            <div className="mt-8 flex space-x-1">
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1 }}
+                  className="w-2 h-2 bg-indigo-600 rounded-full"
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-gray-100 p-4 flex items-center justify-between z-10">
         <button onClick={() => navigate('/')} className="p-2 -ml-2 text-gray-600">
           <ChevronLeft size={24} />
